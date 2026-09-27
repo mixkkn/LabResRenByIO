@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}ตั้งค่าร้าน{% endblock %}
+
+{% block content %}
+<h2>ตั้งค่าร้าน</h2>
+<p class="muted">แก้ไขข้อมูลพื้นฐานของร้าน ซึ่งจะแสดงผลในแถบเมนูด้านบน, ชื่อหน้าเว็บ และท้ายเว็บไซต์ทั่วทั้งระบบ</p>
+
+<div class="card" style="max-width: 480px;">
+    <h3>ชื่อร้าน</h3>
+    <p class="muted" style="margin-bottom: 16px;">
+        ชื่อปัจจุบัน: <strong class="mono">{{ settings.restaurant_name }}</strong>
+    </p>
+
+    <form action="{{ url_for('admin_settings') }}" method="POST">
+        <label for="restaurant_name">ชื่อร้านใหม่</label><br>
+        <input
+            type="text"
+            id="restaurant_name"
+            name="restaurant_name"
+            value="{{ settings.restaurant_name }}"
+            maxlength="100"
+            required
+            style="width: 100%; margin-top: 6px; margin-bottom: 4px;"
+        >
+        <p class="muted" style="font-size: 0.85em; margin-top: 0;">สูงสุด 100 ตัวอักษร ห้ามเว้นว่าง</p>
+
+        <button type="submit">บันทึกการเปลี่ยนแปลง</button>
+        <a class="btn btn-secondary" href="{{ url_for('admin_dashboard') }}">ยกเลิก</a>
+    </form>
+</div>
+{% endblock %}

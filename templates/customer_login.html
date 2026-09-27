@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}เข้าโต๊ะด้วย PIN{% endblock %}
+{% block content %}
+<style>
+    .auth-wrap { max-width: 380px; margin: 30px auto 0; }
+    .auth-wrap .card { border-top: 4px solid var(--accent); text-align: center; }
+    .pin-input {
+        width: 100%;
+        font-family: var(--font-mono);
+        font-size: 2.2em;
+        letter-spacing: 0.6em;
+        text-align: center;
+        padding: 14px 10px 14px 18px;
+        margin: 16px 0 6px;
+    }
+    .auth-wrap button { width: 100%; justify-content: center; padding: 11px 18px; }
+    .auth-foot { text-align: center; margin-top: 14px; }
+</style>
+
+<div class="auth-wrap">
+    <div class="card">
+        <h2>เข้าโต๊ะด้วยรหัส PIN</h2>
+        <p class="muted">กรอกรหัส PIN 4 หลักที่พนักงานให้ไว้ตอนเปิดโต๊ะ</p>
+
+        <form method="POST" action="{{ url_for('customer_login') }}" id="pin-form">
+            <input
+                type="text"
+                inputmode="numeric"
+                pattern="[0-9]*"
+                autocomplete="off"
+                maxlength="4"
+                id="pin"
+                name="pin"
+                class="pin-input"
+                placeholder="0000"
+                autofocus
+                required
+            >
+            <button type="submit">เข้าสู่โต๊ะ</button>
+        </form>
+    </div>
+    <p class="auth-foot muted">
+        เป็นพนักงาน? <a href="{{ url_for('login') }}">เข้าสู่ระบบด้วยชื่อผู้ใช้</a>
+    </p>
+</div>
+
+<script>
+    // ป้องกันการพิมพ์ตัวอักษรที่ไม่ใช่ตัวเลขลงในช่อง PIN (เสริมความสะดวก — ฝั่ง server ยัง validate ซ้ำเสมอ)
+    const pinInput = document.getElementById('pin');
+    pinInput.addEventListener('input', function () {
+        this.value = this.value.replace(/[^0-9]/g, '').slice(0, 4);
+    });
+</script>
+{% endblock %}

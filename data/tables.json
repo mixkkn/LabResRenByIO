@@ -1,0 +1,26 @@
+[
+  {
+    "table_id": "T01",
+    "table_name": "โต๊ะ 1",
+    "status": "ว่าง",
+    "pin": null,
+    "opened_by": null,
+    "opened_at": null
+  },
+  {
+    "table_id": "T02",
+    "table_name": "โต๊ะ 2",
+    "status": "ว่าง",
+    "pin": null,
+    "opened_by": null,
+    "opened_at": null
+  },
+  {
+    "table_id": "T03",
+    "table_name": "โต๊ะ 3",
+    "status": "ว่าง",
+    "pin": null,
+    "opened_by": null,
+    "opened_at": null
+  }
+]

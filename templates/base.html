@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<!--
+    ระบบจัดการร้านอาหารและสต็อกสินค้า — Design tokens
+    -------------------------------------------------
+    แนวคิด: หน้าจอทำงานของพนักงาน/ครัว/แอดมิน ได้แรงบันดาลใจจาก "ใบสั่งอาหาร" (order ticket)
+    และกระดาษใบเสร็จของร้านอาหารไทย — กระดาษสีครีมอุ่นๆ, ตัวหนังสือคมชัดอ่านง่ายบนหน้าจอครัว,
+    ใช้ตัวเลข/รหัส (เลขโต๊ะ, PIN, เลขออเดอร์) เป็นจุดเด่นด้วยฟอนต์ monospace ให้ดูเหมือนพิมพ์จากเครื่องพิมพ์ใบเสร็จ
+
+    Palette:
+      --bg        #F6F1E6  พื้นหลังหน้าเว็บ (กระดาษครีมอุ่น)
+      --bg-card   #FFFDF9  พื้นหลังการ์ด
+      --ink       #2A2118  สีตัวหนังสือหลัก (น้ำตาลเข้มเกือบดำ)
+      --muted     #8B7E68  สีตัวหนังสือรอง
+      --border    #E4D9C4  เส้นขอบ
+      --accent    #B23A2E  สีเน้นหลัก (แดงอิฐ/พริก) ใช้กับปุ่มหลักและหัวข้อ
+      --accent-dark #8F2E24
+      --success   #2b8a3e / --warning #e8590c / --danger #c92a2a (ใช้ตรงกับหน้าครัว/เมนูเดิม)
+
+    Type: 'IBM Plex Sans Thai' สำหรับเนื้อหาทั่วไป, 'IBM Plex Mono' สำหรับรหัส/ตัวเลข (โต๊ะ, PIN, เลขออเดอร์)
+-->
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}ระบบจัดการร้านอาหาร{% endblock %} — {{ restaurant_name }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #F6F1E6;
+            --bg-card: #FFFDF9;
+            --ink: #2A2118;
+            --muted: #8B7E68;
+            --border: #E4D9C4;
+            --accent: #B23A2E;
+            --accent-dark: #8F2E24;
+            --accent-contrast: #FFF7F0;
+            --success: #2b8a3e;
+            --success-bg: #e6f7ea;
+            --warning: #e8590c;
+            --warning-bg: #fff1e6;
+            --danger: #c92a2a;
+            --danger-bg: #ffe9e9;
+            --radius: 10px;
+            --font-body: 'IBM Plex Sans Thai', 'Segoe UI', sans-serif;
+            --font-mono: 'IBM Plex Mono', 'Consolas', monospace;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--ink);
+            font-family: var(--font-body);
+            font-size: 16px;
+            line-height: 1.55;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        h1, h2, h3 { font-weight: 700; margin: 0 0 4px; line-height: 1.3; }
+        h2 { font-size: 1.5em; }
+        h3 { font-size: 1.15em; margin-top: 4px; }
+        p { margin: 0 0 10px; }
+        a { color: var(--accent); }
+
+        code, .mono { font-family: var(--font-mono); }
+
+        .muted { color: var(--muted); }
+
+        /* ---------------------------------------------------------------
+           Navbar
+        --------------------------------------------------------------- */
+        .navbar {
+            background: var(--ink);
+            color: #F4ECE0;
+            padding: 0 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .navbar .brand {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 0;
+            font-weight: 700;
+            font-size: 1.15em;
+            color: #F4ECE0;
+            text-decoration: none;
+        }
+        .navbar .brand .dot {
+            width: 10px; height: 10px; border-radius: 3px;
+            background: var(--accent);
+            display: inline-block;
+        }
+        .navbar .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex-wrap: wrap;
+            padding: 8px 0;
+        }
+        .navbar .nav-links a {
+            color: #E7DCC8;
+            text-decoration: none;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.92em;
+            font-weight: 500;
+        }
+        .navbar .nav-links a:hover { background: rgba(255,255,255,0.08); color: #fff; }
+        .navbar .nav-links .user-pill {
+            font-family: var(--font-mono);
+            font-size: 0.85em;
+            color: #cbbfa5;
+            padding: 8px 6px;
+        }
+        .navbar .nav-links .logout-link { color: #e8a39c; }
+
+        /* ---------------------------------------------------------------
+           Layout
+        --------------------------------------------------------------- */
+        .container {
+            max-width: 1080px;
+            margin: 0 auto;
+            padding: 24px 20px 60px;
+        }
+
+        .flash-stack { margin-bottom: 16px; }
+        .flash {
+            padding: 12px 16px;
+            border-radius: 8px;
+            border-left: 4px solid var(--muted);
+            background: #f1ede2;
+            margin-bottom: 10px;
+            font-size: 0.95em;
+        }
+        .flash.success { border-color: var(--success); background: var(--success-bg); color: #1e5e2a; }
+        .flash.error { border-color: var(--danger); background: var(--danger-bg); color: #8a2323; }
+
+        /* ---------------------------------------------------------------
+           Card
+        --------------------------------------------------------------- */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 22px 24px;
+            margin-bottom: 20px;
+        }
+
+        /* ---------------------------------------------------------------
+           Buttons
+        --------------------------------------------------------------- */
+        button, .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-family: inherit;
+            font-size: 0.95em;
+            font-weight: 600;
+            background: var(--accent);
+            color: var(--accent-contrast);
+            border: none;
+            border-radius: 8px;
+            padding: 10px 18px;
+            margin-top: 8px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background-color 0.15s ease, transform 0.05s ease;
+        }
+        button:hover, .btn:hover { background: var(--accent-dark); color: var(--accent-contrast); }
+        button:active, .btn:active { transform: scale(0.98); }
+        button:focus-visible, .btn:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible {
+            outline: 2px solid var(--accent-dark);
+            outline-offset: 2px;
+        }
+
+        .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+        .btn-danger:hover { background: var(--danger-bg); color: var(--danger); }
+
+        .btn-secondary { background: transparent; color: var(--ink); border: 1px solid var(--border); }
+        .btn-secondary:hover { background: #f1ede2; color: var(--ink); }
+
+        /* ---------------------------------------------------------------
+           Forms
+        --------------------------------------------------------------- */
+        label { font-weight: 600; font-size: 0.9em; }
+        input[type="text"], input[type="password"], input[type="number"],
+        input[type="search"], select, textarea {
+            font-family: inherit;
+            font-size: 1em;
+            padding: 9px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: #fff;
+            color: var(--ink);
+        }
+
+        /* ---------------------------------------------------------------
+           Table
+        --------------------------------------------------------------- */
+        table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+        th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+        th { font-size: 0.8em; text-transform: none; color: var(--muted); font-weight: 600; }
+        tbody tr:hover { background: #faf6ec; }
+
+        /* ---------------------------------------------------------------
+           Badge
+        --------------------------------------------------------------- */
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 0.8em;
+            font-weight: 600;
+        }
+
+        footer.app-footer {
+            text-align: center;
+            color: var(--muted);
+            font-size: 0.85em;
+            padding: 20px;
+        }
+
+        @media (max-width: 640px) {
+            .container { padding: 16px 14px 50px; }
+            .card { padding: 16px; }
+        }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <nav class="navbar">
+        <a class="brand" href="{{ url_for('index') }}"><span class="dot"></span> {{ restaurant_name }}</a>
+        <div class="nav-links">
+            {% set role = session.get('role') %}
+            {% if role == 'admin' %}
+                <a href="{{ url_for('admin_dashboard') }}">แดชบอร์ด</a>
+                <a href="{{ url_for('admin_menu_list') }}">จัดการเมนู</a>
+                <a href="{{ url_for('staff_dashboard') }}">จัดการโต๊ะ</a>
+                <a href="{{ url_for('kitchen_display') }}">ครัว</a>
+                <a href="{{ url_for('admin_bills_list') }}">ประวัติการขาย</a>
+                <a href="{{ url_for('admin_settings') }}">ตั้งค่าร้าน</a>
+                <span class="user-pill">{{ session.get('full_name', session.get('username', '')) }}</span>
+                <a class="logout-link" href="{{ url_for('logout') }}">ออกจากระบบ</a>
+            {% elif role == 'staff' %}
+                <a href="{{ url_for('staff_dashboard') }}">จัดการโต๊ะ</a>
+                <a href="{{ url_for('admin_menu_list') }}">จัดการเมนู</a>
+                <a href="{{ url_for('kitchen_display') }}">ครัว</a>
+                <span class="user-pill">{{ session.get('full_name', session.get('username', '')) }}</span>
+                <a class="logout-link" href="{{ url_for('logout') }}">ออกจากระบบ</a>
+            {% elif role == 'customer' %}
+                <a href="{{ url_for('customer_dashboard') }}">โต๊ะของฉัน</a>
+                <a href="{{ url_for('customer_menu') }}">สั่งอาหาร</a>
+                <span class="user-pill">{{ session.get('table_name', '') }}</span>
+                <a class="logout-link" href="{{ url_for('logout') }}">ออกจากระบบ</a>
+            {% else %}
+                <a href="{{ url_for('login') }}">พนักงานเข้าสู่ระบบ</a>
+                <a href="{{ url_for('customer_login') }}">ลูกค้าเข้าโต๊ะ</a>
+            {% endif %}
+        </div>
+    </nav>
+
+    <main class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="flash-stack">
+                {% for category, message in messages %}
+                    <div class="flash {{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="app-footer">{{ restaurant_name }} — ระบบจัดการร้านอาหารและสต็อกสินค้า</footer>
+</body>
+</html>

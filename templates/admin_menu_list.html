@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}จัดการเมนูอาหาร{% endblock %}
+{% block content %}
+<style>
+    .menu-thumb {
+        width: 56px; height: 56px; object-fit: cover; border-radius: 8px;
+        border: 1px solid var(--border); background: #f1f3f5;
+    }
+    .menu-thumb-placeholder {
+        width: 56px; height: 56px; border-radius: 8px; border: 1px dashed var(--border);
+        display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 1.4em;
+    }
+    .badge-available { background: #d3f9d8; color: #2b8a3e; }
+    .badge-unavailable { background: #ffe3e3; color: #c92a2a; }
+    .menu-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .menu-actions form { display: inline; }
+</style>
+
+<div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <h2>🍽️ จัดการเมนูอาหาร</h2>
+        {% if session.get('role') == 'admin' %}
+        <a class="btn" href="{{ url_for('admin_menu_new') }}">➕ เพิ่มเมนูใหม่</a>
+        {% endif %}
+    </div>
+    <p class="muted">รายการเมนูทั้งหมด (รวมเมนูที่ปิดขาย/อาหารหมด)</p>
+
+    {% if menu|length == 0 %}
+        <p class="muted">ยังไม่มีเมนูอาหารในระบบ กด "เพิ่มเมนูใหม่" เพื่อเริ่มต้น</p>
+    {% else %}
+    <table>
+        <thead>
+            <tr>
+                <th>รูป</th><th>ชื่อเมนู</th><th>หมวดหมู่</th><th>ราคา</th><th>สถานะ</th><th>จัดการ</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for item in menu %}
+            <tr>
+                <td>
+                    {% if item.image %}
+                        <img class="menu-thumb" src="{{ item.image }}" alt="{{ item.name }}">
+                    {% else %}
+                        <div class="menu-thumb-placeholder">🍽️</div>
+                    {% endif %}
+                </td>
+                <td>{{ item.name }}</td>
+                <td>{{ item.category }}</td>
+                <td>{{ "%.2f"|format(item.price) }} บาท</td>
+                <td>
+                    {% if item.is_available %}
+                        <span class="badge badge-available">พร้อมขาย</span>
+                    {% else %}
+                        <span class="badge badge-unavailable">อาหารหมด</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div class="menu-actions">
+                        {% if session.get('role') == 'admin' %}
+                        <a class="btn" href="{{ url_for('admin_menu_edit', menu_id=item.menu_id) }}">แก้ไข</a>
+                        {% endif %}
+
+                        <form method="POST" action="{{ url_for('admin_menu_toggle', menu_id=item.menu_id) }}">
+                            <button type="submit">
+                                {% if item.is_available %}แจ้งอาหารหมด{% else %}เปิดขายอีกครั้ง{% endif %}
+                            </button>
+                        </form>
+
+                        {% if session.get('role') == 'admin' %}
+                        <form method="POST" action="{{ url_for('admin_menu_delete', menu_id=item.menu_id) }}"
+                              onsubmit="return confirm('ยืนยันลบเมนู &quot;{{ item.name }}&quot;? การลบไม่สามารถย้อนกลับได้');">
+                            <button type="submit" class="btn-danger">ลบ</button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
+    <p class="muted" style="margin-top:16px;">
+        <a href="{{ url_for('admin_dashboard') }}">&larr; กลับหน้าแดชบอร์ด</a>
+    </p>
+</div>
+{% endblock %}

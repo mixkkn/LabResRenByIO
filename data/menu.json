@@ -1,0 +1,40 @@
+[
+  {
+    "menu_id": "M001",
+    "name": "ผัดกะเพราหมูสับ",
+    "price": 50.0,
+    "category": "จานเดียว",
+    "is_available": true,
+    "recipe": [
+      {
+        "ingredient_id": "ING001",
+        "qty_used": 0.15
+      },
+      {
+        "ingredient_id": "ING002",
+        "qty_used": 0.02
+      },
+      {
+        "ingredient_id": "ING003",
+        "qty_used": 0.05
+      }
+    ]
+  },
+  {
+    "menu_id": "M002",
+    "name": "ข้าวผัดหมู",
+    "price": 45.0,
+    "category": "จานเดียว",
+    "is_available": true,
+    "recipe": [
+      {
+        "ingredient_id": "ING001",
+        "qty_used": 0.12
+      },
+      {
+        "ingredient_id": "ING004",
+        "qty_used": 0.2
+      }
+    ]
+  }
+]

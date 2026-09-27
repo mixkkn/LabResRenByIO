@@ -1,0 +1,311 @@
+{% extends "base.html" %}
+{% block title %}สั่งอาหาร{% endblock %}
+{% block content %}
+<style>
+    .filter-bar {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        margin-bottom: 4px;
+    }
+    .filter-bar .field { flex: 1 1 200px; }
+    .filter-bar label { display: block; margin-bottom: 6px; }
+    .filter-bar input, .filter-bar select { width: 100%; }
+    .filter-bar button { margin-top: 0; }
+
+    .menu-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 16px;
+        margin-top: 18px;
+    }
+    .menu-card {
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--bg-card);
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+    }
+    .menu-card .menu-img {
+        width: 100%; height: 120px; object-fit: cover; border-radius: 8px; margin-bottom: 10px;
+        background: #f1ede2;
+    }
+    .menu-card .menu-img-placeholder {
+        width: 100%; height: 120px; border-radius: 8px; margin-bottom: 10px;
+        background: #f1ede2; display: flex; align-items: center; justify-content: center;
+        font-size: 2em; color: var(--muted);
+    }
+    .menu-card .menu-category { font-size: 0.78em; color: var(--muted); margin-bottom: 2px; }
+    .menu-card .menu-name { font-weight: 700; margin-bottom: 6px; flex-grow: 1; }
+    .menu-card .menu-price { font-family: var(--font-mono); font-weight: 600; color: var(--accent); margin-bottom: 12px; }
+
+    /* เมนูที่ "อาหารหมด" (is_available = False): แสดงจาง + ป้ายกำกับ + ปิดปุ่มสั่ง */
+    .menu-card.is-sold-out { position: relative; }
+    .menu-card.is-sold-out .menu-img,
+    .menu-card.is-sold-out .menu-img-placeholder {
+        opacity: 0.4;
+        filter: grayscale(100%);
+    }
+    .menu-card.is-sold-out .menu-name,
+    .menu-card.is-sold-out .menu-price,
+    .menu-card.is-sold-out .menu-category {
+        opacity: 0.55;
+    }
+    .sold-out-badge {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        background: #b3261e;
+        color: #fff;
+        font-size: 0.75em;
+        font-weight: 700;
+        padding: 4px 10px;
+        border-radius: 999px;
+        z-index: 1;
+    }
+
+    .qty-stepper {
+        display: flex; align-items: center; justify-content: space-between;
+        border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+    }
+    .qty-stepper button {
+        margin: 0; border-radius: 0; background: #f1ede2; color: var(--ink);
+        font-size: 1.1em; font-weight: 700; padding: 8px 14px;
+    }
+    .qty-stepper button:hover { background: #e6dfcd; }
+    .qty-stepper button:disabled { opacity: 0.4; cursor: not-allowed; }
+    .qty-stepper .qty-value {
+        font-family: var(--font-mono); font-weight: 700; min-width: 32px; text-align: center;
+    }
+
+    .note-input {
+        width: 100%;
+        margin-top: 8px;
+        font-size: 0.85em;
+        padding: 7px 10px;
+    }
+    .note-input:disabled { background: #f1ede2; color: var(--muted); cursor: not-allowed; }
+
+    .pagination { display: flex; justify-content: center; align-items: center; gap: 14px; margin: 22px 0; }
+    .pagination .page-info { color: var(--muted); font-size: 0.9em; }
+
+    .cart-bar {
+        position: sticky;
+        bottom: 0;
+        margin-top: 24px;
+        background: var(--ink);
+        color: #F4ECE0;
+        border-radius: var(--radius);
+        padding: 14px 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    .cart-bar .cart-summary { font-size: 0.95em; }
+    .cart-bar .cart-summary .cart-total { font-family: var(--font-mono); font-weight: 700; color: #ffd9a0; }
+    .cart-bar button { background: var(--accent); }
+</style>
+
+<div class="card">
+    <h2>🍽️ สั่งอาหาร — {{ table.table_name }}</h2>
+
+    <form method="GET" action="{{ url_for('customer_menu') }}" class="filter-bar">
+        <div class="field">
+            <label for="search">ค้นหาเมนู</label>
+            <input type="text" id="search" name="search" value="{{ search }}" placeholder="เช่น กะเพรา, ข้าวผัด">
+        </div>
+        <div class="field">
+            <label for="category">หมวดหมู่</label>
+            <select id="category" name="category">
+                <option value="" {% if selected_category == '' %}selected{% endif %}>ทุกหมวดหมู่</option>
+                {% for c in categories %}
+                    <option value="{{ c }}" {% if selected_category == c %}selected{% endif %}>{{ c }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit">ค้นหา</button>
+    </form>
+    <p class="muted" style="margin-top:10px;">พบ {{ total_items }} รายการ</p>
+</div>
+
+{% if menu|length == 0 %}
+    <div class="card"><p class="muted">ไม่พบเมนูที่ตรงกับเงื่อนไข ลองเปลี่ยนคำค้นหาหรือหมวดหมู่ดูนะครับ</p></div>
+{% else %}
+<div class="menu-grid" id="menu-grid">
+    {% for item in menu %}
+    <div class="menu-card{% if not item.is_available %} is-sold-out{% endif %}" data-menu-id="{{ item.menu_id }}" data-name="{{ item.name }}" data-price="{{ item.price }}" {% if not item.is_available %}data-available="0"{% endif %}>
+        {% if not item.is_available %}
+            <span class="sold-out-badge">อาหารหมด</span>
+        {% endif %}
+        {% if item.image %}
+            <img class="menu-img" src="{{ item.image }}" alt="{{ item.name }}">
+        {% else %}
+            <div class="menu-img-placeholder">🍲</div>
+        {% endif %}
+        <div class="menu-category">{{ item.category }}</div>
+        <div class="menu-name">{{ item.name }}</div>
+        <div class="menu-price">{{ "%.2f"|format(item.price) }} บาท</div>
+
+        <div class="qty-stepper">
+            <button type="button" class="qty-minus" aria-label="ลดจำนวน" {% if not item.is_available %}disabled{% endif %}>−</button>
+            <span class="qty-value">0</span>
+            <button type="button" class="qty-plus" aria-label="เพิ่มจำนวน" {% if not item.is_available %}disabled{% endif %}>+</button>
+        </div>
+        <input type="text" class="note-input" maxlength="100" placeholder="หมายเหตุ (เช่น ไม่เผ็ด, ไข่ดาวกรอบ)"
+               aria-label="หมายเหตุสำหรับ {{ item.name }}" {% if not item.is_available %}disabled{% endif %}>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="pagination">
+    {% if page > 1 %}
+        <a class="btn btn-secondary" href="{{ url_for('customer_menu', search=search, category=selected_category, page=page-1) }}">&larr; ก่อนหน้า</a>
+    {% endif %}
+    <span class="page-info">หน้า {{ page }} จาก {{ total_pages }}</span>
+    {% if page < total_pages %}
+        <a class="btn btn-secondary" href="{{ url_for('customer_menu', search=search, category=selected_category, page=page+1) }}">ถัดไป &rarr;</a>
+    {% endif %}
+</div>
+{% endif %}
+
+<div class="cart-bar">
+    <div class="cart-summary">
+        ตะกร้า: <strong id="cart-count">0</strong> รายการ
+        &nbsp;·&nbsp; รวม <span class="cart-total" id="cart-total">0.00</span> บาท
+    </div>
+    <form method="POST" action="{{ url_for('customer_order') }}" id="order-form">
+        <input type="hidden" name="cart_data" id="cart_data">
+        <button type="submit" id="confirm-order-btn">✅ ยืนยันสั่งอาหาร</button>
+    </form>
+</div>
+
+<script>
+    // MAX_QTY ต้องตรงกับ MAX_QTY_PER_ITEM ฝั่ง server (app.py) — ป้องกัน UI ปล่อยให้กดเกินโดยไม่จำเป็น
+    // (ฝั่ง server ยัง validate ซ้ำเสมอ ห้ามเชื่อค่าจาก client)
+    const MAX_QTY = 50;
+    const TABLE_ID = {{ table.table_id|tojson }};
+    const CART_KEY = 'cart_' + TABLE_ID;
+
+    function loadCart() {
+        try {
+            const raw = sessionStorage.getItem(CART_KEY);
+            return raw ? JSON.parse(raw) : {};
+        } catch (e) {
+            return {};
+        }
+    }
+
+    function saveCart(cart) {
+        try {
+            sessionStorage.setItem(CART_KEY, JSON.stringify(cart));
+        } catch (e) {
+            // เก็บ cart ไม่ได้ (เช่น private mode) — ปล่อยผ่าน ยังสั่งอาหารได้ปกติในหน้าปัจจุบัน
+        }
+    }
+
+    let cart = loadCart();
+
+    function updateSummary() {
+        let count = 0;
+        let total = 0;
+        Object.values(cart).forEach(function (entry) {
+            count += entry.quantity;
+            total += entry.quantity * entry.price;
+        });
+        document.getElementById('cart-count').textContent = count;
+        document.getElementById('cart-total').textContent = total.toFixed(2);
+    }
+
+    function renderCardQty(card) {
+        const menuId = card.dataset.menuId;
+        const isAvailable = card.dataset.available !== '0';
+        const qtyEl = card.querySelector('.qty-value');
+        const minusBtn = card.querySelector('.qty-minus');
+        const plusBtn = card.querySelector('.qty-plus');
+        const qty = cart[menuId] ? cart[menuId].quantity : 0;
+        qtyEl.textContent = qty;
+        minusBtn.disabled = (qty <= 0) || !isAvailable;
+        // เมนูอาหารหมดต้องปิดปุ่ม + ไว้เสมอ ไม่ว่าจะ re-render กี่ครั้งก็ตาม
+        plusBtn.disabled = !isAvailable;
+    }
+
+    // แสดงค่าหมายเหตุที่เคยกรอกไว้ (เก็บพ่วงไปกับ cart ใน sessionStorage) กลับขึ้นมาในช่องกรอก
+    function renderCardNote(card) {
+        const menuId = card.dataset.menuId;
+        const noteInput = card.querySelector('.note-input');
+        if (!noteInput) return;
+        noteInput.value = (cart[menuId] && cart[menuId].note) ? cart[menuId].note : '';
+    }
+
+    document.querySelectorAll('.menu-card').forEach(function (card) {
+        renderCardQty(card);
+        renderCardNote(card);
+
+        const menuId = card.dataset.menuId;
+        const name = card.dataset.name;
+        const price = parseFloat(card.dataset.price);
+        const isAvailable = card.dataset.available !== '0';
+        const noteInput = card.querySelector('.note-input');
+
+        card.querySelector('.qty-plus').addEventListener('click', function () {
+            // กันเมนูอาหารหมดโดนสั่งเพิ่ม แม้จะพยายาม bypass attribute disabled ผ่าน devtools ก็ตาม
+            // (ฝั่ง server / customer_order ก็ validate ซ้ำอีกชั้นอยู่แล้ว)
+            if (!isAvailable) return;
+            const current = cart[menuId] ? cart[menuId].quantity : 0;
+            if (current >= MAX_QTY) return;
+            const existingNote = cart[menuId] ? cart[menuId].note : (noteInput ? noteInput.value : '');
+            cart[menuId] = { quantity: current + 1, name: name, price: price, note: existingNote || '' };
+            saveCart(cart);
+            renderCardQty(card);
+            updateSummary();
+        });
+
+        card.querySelector('.qty-minus').addEventListener('click', function () {
+            if (!isAvailable) return;
+            const current = cart[menuId] ? cart[menuId].quantity : 0;
+            if (current <= 0) return;
+            const next = current - 1;
+            if (next === 0) {
+                delete cart[menuId];
+            } else {
+                cart[menuId] = { quantity: next, name: name, price: price, note: cart[menuId].note || '' };
+            }
+            saveCart(cart);
+            renderCardQty(card);
+            updateSummary();
+        });
+
+        // อัปเดตหมายเหตุลงในตะกร้าทันทีที่พิมพ์ (มีผลก็ต่อเมื่อรายการนี้ถูกสั่งไว้แล้ว คือมีจำนวน > 0)
+        if (noteInput) {
+            noteInput.addEventListener('input', function (e) {
+                const value = e.target.value.slice(0, 100);
+                if (cart[menuId]) {
+                    cart[menuId].note = value;
+                    saveCart(cart);
+                }
+            });
+        }
+    });
+
+    updateSummary();
+
+    document.getElementById('order-form').addEventListener('submit', function (e) {
+        const items = Object.keys(cart).map(function (menuId) {
+            return { menu_id: menuId, quantity: cart[menuId].quantity, note: cart[menuId].note || '' };
+        });
+
+        if (items.length === 0) {
+            e.preventDefault();
+            alert('กรุณาเลือกอย่างน้อย 1 รายการก่อนยืนยันออเดอร์ (กดปุ่ม + ที่เมนูที่ต้องการ)');
+            return;
+        }
+
+        document.getElementById('cart_data').value = JSON.stringify(items);
+        sessionStorage.removeItem(CART_KEY); // เคลียร์ตะกร้าหลังยืนยันส่งออเดอร์
+    });
+</script>
+{% endblock %}

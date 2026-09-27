@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}เช็คบิล - {{ bill.table_id }}{% endblock %}
+{% block content %}
+<div class="card">
+    <h2>🧾 เช็คบิล - โต๊ะ {{ bill.table_id }}</h2>
+
+    <h3>รายการออเดอร์ทั้งหมดของโต๊ะนี้</h3>
+    <table>
+        <thead><tr><th>ออเดอร์</th><th>รายการ</th><th>ยอด</th></tr></thead>
+        <tbody>
+        {% for o in bill.orders %}
+            <tr>
+                <td>{{ o.order_id }}</td>
+                <td>
+                    {% for item in o['items'] %}
+                        {{ item.name }} x{{ item.quantity }}{% if not loop.last %}, {% endif %}
+                    {% endfor %}
+                </td>
+                <td>{{ "%.2f"|format(o.total_price) }} บาท</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- ฟอร์มปรับส่วนลด/ภาษี เพื่อดูยอดคำนวณใหม่ก่อนยืนยันจริง (GET = พรีวิวเท่านั้น) -->
+    <form method="GET" action="{{ url_for('checkout_preview', table_id=table_id) }}" class="toolbar" style="display:flex; gap:16px; margin-top:20px;">
+        <div>
+            <label for="discount">ส่วนลด (%)</label>
+            <input type="text" id="discount" name="discount" value="{{ bill.discount_percent }}" style="width:100px;">
+        </div>
+        <div>
+            <label for="tax">ภาษี (%)</label>
+            <input type="text" id="tax" name="tax" value="{{ bill.tax_percent }}" style="width:100px;">
+        </div>
+        <div style="align-self:flex-end;">
+            <button type="submit">คำนวณใหม่</button>
+        </div>
+    </form>
+
+    <div class="card" style="background:#fff9f4; margin-top:20px;">
+        <div class="cart-row" style="display:flex; justify-content:space-between; padding:6px 0;">
+            <span>ยอดรวมก่อนหักส่วนลด</span><span>{{ "%.2f"|format(bill.subtotal) }} บาท</span>
+        </div>
+        <div class="cart-row" style="display:flex; justify-content:space-between; padding:6px 0;">
+            <span>ส่วนลด ({{ bill.discount_percent }}%)</span><span>-{{ "%.2f"|format(bill.discount_amount) }} บาท</span>
+        </div>
+        <div class="cart-row" style="display:flex; justify-content:space-between; padding:6px 0;">
+            <span>ภาษี ({{ bill.tax_percent }}%)</span><span>+{{ "%.2f"|format(bill.tax_amount) }} บาท</span>
+        </div>
+        <div class="cart-total" style="display:flex; justify-content:space-between; font-weight:700; font-size:1.3em; margin-top:10px; padding-top:10px; border-top:2px solid var(--border);">
+            <span>ยอดชำระทั้งหมด</span><span>{{ "%.2f"|format(bill.grand_total) }} บาท</span>
+        </div>
+    </div>
+
+    <form method="POST" action="{{ url_for('checkout_confirm', table_id=table_id) }}"
+          onsubmit="return confirm('ยืนยันเช็คบิล? ระบบจะตัดสต็อกวัตถุดิบและปิดโต๊ะทันที');">
+        <input type="hidden" name="discount" value="{{ bill.discount_percent }}">
+        <input type="hidden" name="tax" value="{{ bill.tax_percent }}">
+        <button type="submit">✅ ยืนยันเช็คบิล</button>
+    </form>
+
+    <p class="muted" style="margin-top:16px;">
+        <a href="{{ url_for('staff_dashboard') }}">&larr; กลับหน้าจัดการโต๊ะ</a>
+    </p>
+</div>
+{% endblock %}

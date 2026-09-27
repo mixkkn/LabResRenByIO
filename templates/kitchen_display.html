@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+{% block title %}หน้าครัว - Kitchen Display{% endblock %}
+{% block content %}
+<style>
+    .kitchen-columns {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+    @media (max-width: 800px) {
+        .kitchen-columns { grid-template-columns: 1fr; }
+    }
+    .kitchen-zone {
+        border-radius: 10px;
+        padding: 14px;
+        background: #fbfbfb;
+    }
+    .kitchen-zone.zone-pending {
+        border: 2px solid #e8590c;
+        background: #fff6f0;
+    }
+    .kitchen-zone.zone-cooking {
+        border: 2px solid #f08c00;
+        background: #fffaf0;
+    }
+    .zone-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+    }
+    .zone-header h3 {
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .zone-count {
+        background: #fff;
+        border-radius: 999px;
+        padding: 2px 12px;
+        font-weight: 700;
+        font-size: 0.9em;
+        border: 1px solid var(--border);
+    }
+    .zone-pending .zone-count { color: #e8590c; border-color: #e8590c; }
+    .zone-cooking .zone-count { color: #b3690a; border-color: #f08c00; }
+
+    .order-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 16px;
+    }
+    .order-card {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 16px;
+        background: #fffaf5;
+    }
+    .order-card.รอดำเนินการ { border-left: 6px solid #e8590c; }
+    .order-card.กำลังปรุง { border-left: 6px solid #f08c00; }
+    .order-card.เสิร์ฟแล้ว { border-left: 6px solid #2b8a3e; opacity: 0.85; }
+    .order-card.ยกเลิก { border-left: 6px solid #c92a2a; opacity: 0.6; }
+    .order-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+    .order-header .order-id { font-weight: 700; }
+    .order-time { color: var(--muted); font-size: 0.85em; margin-bottom: 10px; }
+    .order-items { list-style: none; padding: 0; margin: 0 0 12px; }
+    .order-items li { padding: 4px 0; border-bottom: 1px dashed var(--border); }
+    .order-items .item-note {
+        font-size: 0.85em;
+        color: var(--danger);
+        font-weight: 600;
+        margin-top: 2px;
+    }
+    .order-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .order-actions button { margin-top: 0; }
+    .zone-empty { color: var(--muted); padding: 8px 4px; }
+</style>
+
+{% set pending_orders = active_orders | selectattr('status', 'equalto', 'รอดำเนินการ') | list %}
+{% set cooking_orders = active_orders | selectattr('status', 'equalto', 'กำลังปรุง') | list %}
+
+<div class="card">
+    <h2>🍳 หน้าครัว (Kitchen Display)</h2>
+    <p class="muted">ออเดอร์เรียงตามลำดับเวลาที่สั่ง (เก่าสุดอยู่ซ้ายบนสุด) แยกโซนตามสถานะเพื่อจัดลำดับความสำคัญได้ง่ายขึ้น</p>
+
+    {% if active_orders|length == 0 %}
+        <p class="muted">ยังไม่มีออเดอร์ที่ต้องดำเนินการในขณะนี้</p>
+    {% else %}
+    <div class="kitchen-columns">
+
+        <!-- โซนซ้าย: รอดำเนินการ (ยังไม่เริ่มปรุง) -->
+        <div class="kitchen-zone zone-pending">
+            <div class="zone-header">
+                <h3>🕐 รอดำเนินการ</h3>
+                <span class="zone-count">{{ pending_orders|length }}</span>
+            </div>
+
+            {% if pending_orders|length == 0 %}
+                <p class="zone-empty">ไม่มีออเดอร์รอดำเนินการ</p>
+            {% else %}
+            <div class="order-grid">
+                {% for o in pending_orders %}
+                <div class="order-card {{ o.status }}">
+                    <div class="order-header">
+                        <span class="order-id">{{ o.order_id }}</span>
+                        <span class="badge {{ o.status }}" style="background:#e9ecef; color:#495057;">{{ o.status }}</span>
+                    </div>
+                    <div class="order-time">โต๊ะ: {{ o.table_id }} | เวลา: {{ o.created_at }}</div>
+                    <ul class="order-items">
+                        {% for item in o['items'] %}
+                        <li>
+                            <div>{{ item.name }} x {{ item.quantity }}</div>
+                            {% if item.note %}
+                            <div class="item-note">📝 หมายเหตุ: {{ item.note }}</div>
+                            {% endif %}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    <div class="order-actions">
+                        <form method="POST" action="{{ url_for('kitchen_advance_order', order_id=o.order_id) }}">
+                            <button type="submit">เริ่มปรุง</button>
+                        </form>
+                        <form method="POST" action="{{ url_for('kitchen_cancel_order', order_id=o.order_id) }}"
+                              onsubmit="return confirm('ยืนยันยกเลิกออเดอร์นี้?');">
+                            <button type="submit" class="btn-danger">ยกเลิก</button>
+                        </form>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- โซนขวา: กำลังปรุง -->
+        <div class="kitchen-zone zone-cooking">
+            <div class="zone-header">
+                <h3>🔥 กำลังปรุง</h3>
+                <span class="zone-count">{{ cooking_orders|length }}</span>
+            </div>
+
+            {% if cooking_orders|length == 0 %}
+                <p class="zone-empty">ไม่มีออเดอร์ที่กำลังปรุงอยู่</p>
+            {% else %}
+            <div class="order-grid">
+                {% for o in cooking_orders %}
+                <div class="order-card {{ o.status }}">
+                    <div class="order-header">
+                        <span class="order-id">{{ o.order_id }}</span>
+                        <span class="badge {{ o.status }}" style="background:#e9ecef; color:#495057;">{{ o.status }}</span>
+                    </div>
+                    <div class="order-time">โต๊ะ: {{ o.table_id }} | เวลา: {{ o.created_at }}</div>
+                    <ul class="order-items">
+                        {% for item in o['items'] %}
+                        <li>
+                            <div>{{ item.name }} x {{ item.quantity }}</div>
+                            {% if item.note %}
+                            <div class="item-note">📝 หมายเหตุ: {{ item.note }}</div>
+                            {% endif %}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    <div class="order-actions">
+                        <form method="POST" action="{{ url_for('kitchen_advance_order', order_id=o.order_id) }}">
+                            <button type="submit">เสิร์ฟแล้ว</button>
+                        </form>
+                        <form method="POST" action="{{ url_for('kitchen_cancel_order', order_id=o.order_id) }}"
+                              onsubmit="return confirm('ยืนยันยกเลิกออเดอร์นี้?');">
+                            <button type="submit" class="btn-danger">ยกเลิก</button>
+                        </form>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+    </div>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h3>ประวัติล่าสุด (เสิร์ฟแล้ว / ยกเลิก)</h3>
+    {% if finished_orders|length == 0 %}
+        <p class="muted">ยังไม่มีประวัติ</p>
+    {% else %}
+    <table>
+        <thead><tr><th>ออเดอร์</th><th>โต๊ะ</th><th>เวลา</th><th>สถานะ</th></tr></thead>
+        <tbody>
+        {% for o in finished_orders %}
+            <tr>
+                <td>{{ o.order_id }}</td>
+                <td>{{ o.table_id }}</td>
+                <td>{{ o.created_at }}</td>
+                <td><span class="badge" style="background:#e9ecef; color:#495057;">{{ o.status }}</span></td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+</div>
+{% endblock %}

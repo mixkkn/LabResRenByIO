@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+{% block title %}{% if mode == 'edit' %}แก้ไขเมนู{% else %}เพิ่มเมนูใหม่{% endif %}{% endblock %}
+{% block content %}
+<style>
+    .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+    .form-group label { display: block; margin-bottom: 4px; font-weight: 600; }
+    .form-group input[type="text"],
+    .form-group input[type="number"],
+    .form-group input[type="file"] { width: 100%; }
+
+    .current-image { margin-top: 8px; }
+    .current-image img {
+        width: 90px; height: 90px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border);
+    }
+    .current-image img { transition: opacity 0.15s ease; }
+    #remove-image-btn { margin-top: 8px; }
+    #remove-image-btn.is-active { background: #b02a37; }
+
+    .recipe-table th, .recipe-table td { vertical-align: middle; }
+    .recipe-table select, .recipe-table input[type="number"] { width: 100%; }
+    .recipe-empty { color: var(--muted); font-style: italic; }
+</style>
+
+<div class="card">
+    <h2>{% if mode == 'edit' %}✏️ แก้ไขเมนู: {{ menu_item.name }}{% else %}➕ เพิ่มเมนูใหม่{% endif %}</h2>
+
+    <form method="POST" enctype="multipart/form-data" id="menu-form">
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="name">ชื่อเมนู</label>
+                <input type="text" id="name" name="name" maxlength="100" required
+                       value="{{ menu_item.name if menu_item else '' }}">
+            </div>
+            <div class="form-group">
+                <label for="price">ราคา (บาท)</label>
+                <input type="number" id="price" name="price" step="0.01" min="0.01" required
+                       value="{{ menu_item.price if menu_item else '' }}">
+            </div>
+            <div class="form-group">
+                <label for="category">หมวดหมู่</label>
+                <input type="text" id="category" name="category" required
+                       value="{{ menu_item.category if menu_item else '' }}"
+                       placeholder="เช่น จานเดียว, ของทานเล่น, เครื่องดื่ม">
+            </div>
+            <div class="form-group">
+                <label for="image">รูปภาพเมนู</label>
+                <input type="file" id="image" name="image" accept=".png,.jpg,.jpeg,.webp,.gif">
+                {% if mode == 'edit' and menu_item and menu_item.image %}
+                <div class="current-image">
+                    <span class="muted">รูปปัจจุบัน:</span><br>
+                    <img id="current-image-preview" src="{{ url_for('static', filename='uploads/' + menu_item.image) }}" alt="{{ menu_item.name }}">
+                    <p class="muted" style="margin-top:4px;">เว้นว่างไว้หากต้องการใช้รูปเดิมต่อ</p>
+                    <button type="button" id="remove-image-btn" class="btn-danger">🗑️ ลบรูปภาพนี้ออก</button>
+                    <input type="hidden" id="remove_image" name="remove_image" value="0">
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <h3 style="margin-top:24px;">🧾 สูตรอาหาร (วัตถุดิบที่ใช้ต่อ 1 จาน)</h3>
+        <p class="muted">ระบบจะตัดสต็อกวัตถุดิบตามสูตรนี้โดยอัตโนมัติทุกครั้งที่เช็คบิล</p>
+
+        <table class="recipe-table">
+            <thead><tr><th style="width:55%;">วัตถุดิบ</th><th style="width:30%;">ปริมาณ/จาน</th><th></th></tr></thead>
+            <tbody id="recipe-rows"></tbody>
+        </table>
+        <p id="recipe-empty-msg" class="recipe-empty" style="display:none;">ยังไม่มีวัตถุดิบในสูตร กด "เพิ่มวัตถุดิบ" ด้านล่าง</p>
+        <button type="button" onclick="addRecipeRow()">➕ เพิ่มวัตถุดิบ</button>
+
+        <input type="hidden" name="recipe_data" id="recipe_data">
+
+        <div style="margin-top:24px;">
+            <button type="submit">💾 {% if mode == 'edit' %}บันทึกการแก้ไข{% else %}บันทึกเมนูใหม่{% endif %}</button>
+        </div>
+    </form>
+
+    <p class="muted" style="margin-top:16px;">
+        <a href="{{ url_for('admin_menu_list') }}">&larr; กลับหน้ารายการเมนู</a>
+    </p>
+</div>
+
+<script>
+    // ข้อมูลวัตถุดิบทั้งหมดในสต็อก (ใช้สร้าง dropdown ของแต่ละแถวในสูตรอาหาร)
+    const INGREDIENTS = {{ ingredients|tojson }};
+    // สูตรอาหารเดิม (ถ้าเป็นโหมดแก้ไข) ใช้เติมค่าเริ่มต้นในตาราง
+    const EXISTING_RECIPE = {{ (menu_item.recipe if menu_item else [])|tojson }};
+
+    const rowsBody = document.getElementById('recipe-rows');
+    const emptyMsg = document.getElementById('recipe-empty-msg');
+
+    function buildIngredientOptions(selectedId) {
+        let options = '<option value="">-- เลือกวัตถุดิบ --</option>';
+        INGREDIENTS.forEach(function (ing) {
+            const selected = (ing.ingredient_id === selectedId) ? 'selected' : '';
+            options += '<option value="' + ing.ingredient_id + '" ' + selected + '>' +
+                ing.name + ' (' + ing.unit + ')</option>';
+        });
+        return options;
+    }
+
+    function addRecipeRow(ingredientId, qtyUsed) {
+        const row = document.createElement('tr');
+
+        const ingCell = document.createElement('td');
+        const select = document.createElement('select');
+        select.className = 'recipe-ingredient';
+        select.innerHTML = buildIngredientOptions(ingredientId || '');
+        ingCell.appendChild(select);
+
+        const qtyCell = document.createElement('td');
+        const qtyInput = document.createElement('input');
+        qtyInput.type = 'number';
+        qtyInput.step = '0.001';
+        qtyInput.min = '0.001';
+        qtyInput.className = 'recipe-qty';
+        qtyInput.placeholder = 'ปริมาณต่อจาน';
+        if (qtyUsed !== undefined && qtyUsed !== null) {
+            qtyInput.value = qtyUsed;
+        }
+        qtyCell.appendChild(qtyInput);
+
+        const actionCell = document.createElement('td');
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'btn-danger';
+        removeBtn.textContent = 'ลบ';
+        removeBtn.onclick = function () {
+            row.remove();
+            toggleEmptyMsg();
+        };
+        actionCell.appendChild(removeBtn);
+
+        row.appendChild(ingCell);
+        row.appendChild(qtyCell);
+        row.appendChild(actionCell);
+        rowsBody.appendChild(row);
+        toggleEmptyMsg();
+    }
+
+    function toggleEmptyMsg() {
+        emptyMsg.style.display = (rowsBody.children.length === 0) ? 'block' : 'none';
+    }
+
+    // เติมแถวเริ่มต้นจากสูตรอาหารเดิม (โหมดแก้ไข) หรือปล่อยว่างไว้ (โหมดเพิ่มใหม่)
+    if (EXISTING_RECIPE && EXISTING_RECIPE.length > 0) {
+        EXISTING_RECIPE.forEach(function (r) {
+            addRecipeRow(r.ingredient_id, r.qty_used);
+        });
+    } else {
+        toggleEmptyMsg();
+    }
+
+    // ก่อนส่งฟอร์ม: รวบรวมข้อมูลสูตรอาหารจากตารางเป็น JSON แล้วตรวจสอบเบื้องต้นฝั่ง client
+    // (ฝั่ง server ยัง validate ซ้ำอีกชั้นเสมอ ห้ามเชื่อฝั่ง client)
+    document.getElementById('menu-form').addEventListener('submit', function (e) {
+        const rows = rowsBody.querySelectorAll('tr');
+        const recipe = [];
+        const seen = new Set();
+
+        for (const row of rows) {
+            const ingId = row.querySelector('.recipe-ingredient').value;
+            const qtyRaw = row.querySelector('.recipe-qty').value;
+
+            if (!ingId || qtyRaw === '') {
+                continue; // แถวว่าง ข้ามไป (ไม่บังคับกรอกทุกแถวที่เผลอเพิ่มไว้)
+            }
+            const qty = parseFloat(qtyRaw);
+            if (isNaN(qty) || qty <= 0) {
+                alert('ปริมาณวัตถุดิบต่อจานต้องเป็นตัวเลขมากกว่า 0');
+                e.preventDefault();
+                return;
+            }
+            if (seen.has(ingId)) {
+                alert('มีวัตถุดิบซ้ำกันในสูตรอาหาร กรุณาตรวจสอบอีกครั้ง');
+                e.preventDefault();
+                return;
+            }
+            seen.add(ingId);
+            recipe.push({ ingredient_id: ingId, qty_used: qty });
+        }
+
+        document.getElementById('recipe_data').value = JSON.stringify(recipe);
+    });
+
+    // ปุ่ม "ลบรูปภาพนี้ออก" เป็นปุ่ม toggle: กดแล้วสลับสถานะ พร้อมเก็บค่าไว้ใน hidden input
+    // ให้อัปโหลดรูปใหม่กับกดลบรูปเดิม ไม่ขัดแย้งกันฝั่ง UI
+    // (ฝั่ง server ถือว่ารูปใหม่สำคัญกว่าอยู่แล้ว แต่กันความสับสนของแอดมินไว้ก่อน)
+    const imageInput = document.getElementById('image');
+    const removeImageInput = document.getElementById('remove_image');
+    const removeImageBtn = document.getElementById('remove-image-btn');
+    const currentImagePreview = document.getElementById('current-image-preview');
+
+    function setRemoveImageMarked(marked) {
+        removeImageInput.value = marked ? '1' : '0';
+        if (removeImageBtn) {
+            removeImageBtn.textContent = marked ? '↩️ ยกเลิกการลบรูป' : '🗑️ ลบรูปภาพนี้ออก';
+            removeImageBtn.classList.toggle('is-active', marked);
+        }
+        if (currentImagePreview) {
+            currentImagePreview.style.opacity = marked ? '0.35' : '1';
+        }
+    }
+
+    if (removeImageBtn && removeImageInput) {
+        removeImageBtn.addEventListener('click', function () {
+            const marked = removeImageInput.value === '1';
+            if (!marked && imageInput) {
+                imageInput.value = ''; // เลือกลบรูป -> เคลียร์ไฟล์ที่เพิ่งเลือกไว้ (ถ้ามี)
+            }
+            setRemoveImageMarked(!marked);
+        });
+    }
+
+    if (imageInput && removeImageInput) {
+        imageInput.addEventListener('change', function () {
+            if (imageInput.files && imageInput.files.length > 0) {
+                setRemoveImageMarked(false); // เลือกรูปใหม่ -> ยกเลิกการกดลบรูปเดิมอัตโนมัติ
+            }
+        });
+    }
+</script>
+{% endblock %}

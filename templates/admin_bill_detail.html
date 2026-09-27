@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}รายละเอียดบิล {{ bill.bill_id }}{% endblock %}
+
+{% block content %}
+<p><a href="{{ url_for('admin_bills_list') }}">&larr; กลับไปหน้าประวัติบิล</a></p>
+
+<div class="card">
+    <h2>บิล <span class="mono">{{ bill.bill_id }}</span></h2>
+    <table>
+        <tbody>
+            <tr><th style="width:200px;">โต๊ะ</th><td>{{ bill.table_name }}</td></tr>
+            <tr><th>พนักงานผู้ทำรายการ</th><td>{{ bill.checked_out_by|default('-') }}</td></tr>
+            <tr><th>เวลาที่เช็คบิล</th><td class="mono">{{ bill.checked_out_at|default('-') }}</td></tr>
+            {% if bill.close_table_warning %}
+            <tr><th>หมายเหตุ</th><td class="muted">{{ bill.close_table_warning }}</td></tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>
+
+<div class="card">
+    <h3>รายการอาหารที่สั่งในบิลนี้</h3>
+    {% set bill_items = bill.get('items', []) %}
+    {% if bill_items %}
+    <div style="overflow-x:auto;">
+        <table>
+            <thead>
+                <tr>
+                    <th>เมนู</th>
+                    <th>จำนวน</th>
+                    <th>ราคา/หน่วย</th>
+                    <th>ราคารวม</th>
+                    <th>หมายเหตุ</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in bill_items %}
+                <tr>
+                    <td>{{ item.name }}</td>
+                    <td class="mono">{{ item.quantity }}</td>
+                    <td class="mono">{{ "%.2f"|format(item.price|default(0)) }}</td>
+                    <td class="mono">{{ "%.2f"|format(item.subtotal|default(0)) }}</td>
+                    <td class="muted">{{ item.note|default('') }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="muted">ไม่มีรายละเอียดรายการอาหารสำหรับบิลนี้ (อาจเป็นบิลเก่าก่อนมีการบันทึกข้อมูลเชิงลึก)</p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h3>สรุปการคำนวณเงิน</h3>
+    <table>
+        <tbody>
+            <tr><th style="width:200px;">ยอดก่อนหักส่วนลด (Subtotal)</th><td class="mono">{{ "%.2f"|format(bill.subtotal|default(0)) }} บาท</td></tr>
+            <tr><th>ส่วนลด ({{ bill.discount_percent|default(0) }}%)</th><td class="mono">-{{ "%.2f"|format(bill.discount_amount|default(0)) }} บาท</td></tr>
+            <tr><th>ภาษี ({{ bill.tax_percent|default(0) }}%)</th><td class="mono">+{{ "%.2f"|format(bill.tax_amount|default(0)) }} บาท</td></tr>
+            <tr><th>ยอดสุทธิ (Grand Total)</th><td class="mono" style="font-weight:700;">{{ "%.2f"|format(bill.grand_total|default(0)) }} บาท</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="card">
+    <h3>รายงานการตัดสต็อกวัตถุดิบจากบิลนี้</h3>
+    {% set deductions = bill.get('stock_deductions', []) %}
+    {% set warnings = bill.get('stock_warnings', []) %}
+    {% if deductions %}
+    <div style="overflow-x:auto;">
+        <table>
+            <thead>
+                <tr>
+                    <th>วัตถุดิบ</th>
+                    <th>ปริมาณที่ตัด</th>
+                    <th>คงเหลือก่อนตัด</th>
+                    <th>คงเหลือหลังตัด</th>
+                    <th>สถานะ</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in deductions %}
+                <tr>
+                    <td>{{ d.name }}</td>
+                    <td class="mono">-{{ d.qty_deducted }} {{ d.unit }}</td>
+                    <td class="mono">{{ d.before_qty }} {{ d.unit }}</td>
+                    <td class="mono">{{ d.after_qty }} {{ d.unit }}</td>
+                    <td>
+                        {% if d.after_qty < 0 %}
+                        <span class="badge" style="background:var(--danger-bg); color:var(--danger);">สต็อกติดลบ</span>
+                        {% else %}
+                        <span class="badge" style="background:var(--success-bg); color:var(--success);">ปกติ</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if warnings %}
+    <p style="margin-top:14px; color:var(--danger); font-weight:600;">
+        ⚠ พบวัตถุดิบ {{ warnings|length }} รายการที่สต็อกติดลบหลังตัดจากบิลนี้ กรุณาตรวจสอบและเติมสต็อก
+    </p>
+    {% endif %}
+    {% else %}
+    <p class="muted">ไม่มีข้อมูลการตัดสต็อกสำหรับบิลนี้ (อาจเป็นบิลเก่าก่อนมีการบันทึกข้อมูลเชิงลึก)</p>
+    {% endif %}
+</div>
+{% endblock %}

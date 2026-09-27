@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}ประวัติการขาย / บิลย้อนหลัง{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>ประวัติการขาย / บิลย้อนหลัง</h2>
+    <p class="muted">รายการบิลทั้งหมดที่เช็คบิลสำเร็จแล้ว เรียงจากล่าสุดไปเก่าสุด ทั้งหมด {{ bills|length }} บิล</p>
+
+    {% if bills %}
+    <div style="overflow-x:auto;">
+        <table>
+            <thead>
+                <tr>
+                    <th>รหัสบิล</th>
+                    <th>โต๊ะ</th>
+                    <th>ยอดชำระสุทธิ (บาท)</th>
+                    <th>พนักงานผู้ทำรายการ</th>
+                    <th>เวลาที่เช็คบิล</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for bill in bills %}
+                <tr>
+                    <td class="mono">{{ bill.bill_id }}</td>
+                    <td>{{ bill.table_name }}</td>
+                    <td class="mono">{{ "%.2f"|format(bill.grand_total|default(0)) }}</td>
+                    <td>{{ bill.checked_out_by|default('-') }}</td>
+                    <td class="mono">{{ bill.checked_out_at|default('-') }}</td>
+                    <td>
+                        <a class="btn btn-secondary" href="{{ url_for('admin_bill_detail', bill_id=bill.bill_id) }}">รายละเอียดเชิงลึก</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="muted">ยังไม่มีประวัติการเช็คบิลในระบบ</p>
+    {% endif %}
+</div>
+{% endblock %}

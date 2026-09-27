@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}เข้าสู่ระบบพนักงาน{% endblock %}
+{% block content %}
+<style>
+    .auth-wrap { max-width: 380px; margin: 30px auto 0; }
+    .auth-wrap .card { border-top: 4px solid var(--accent); }
+    .field { margin-bottom: 16px; }
+    .field label { display: block; margin-bottom: 6px; }
+    .field input { width: 100%; }
+    .auth-wrap button { width: 100%; justify-content: center; padding: 11px 18px; }
+    .auth-foot { text-align: center; margin-top: 14px; }
+</style>
+
+<div class="auth-wrap">
+    <div class="card">
+        <h2>เข้าสู่ระบบพนักงาน</h2>
+        <p class="muted">สำหรับ Staff และ Admin เท่านั้น</p>
+
+        <form method="POST" action="{{ url_for('login') }}">
+            <div class="field">
+                <label for="username">ชื่อผู้ใช้</label>
+                <input type="text" id="username" name="username" autocomplete="username" required autofocus>
+            </div>
+            <div class="field">
+                <label for="password">รหัสผ่าน</label>
+                <input type="password" id="password" name="password" autocomplete="current-password" required>
+            </div>
+            <button type="submit">เข้าสู่ระบบ</button>
+        </form>
+    </div>
+    <p class="auth-foot muted">
+        เป็นลูกค้า? <a href="{{ url_for('customer_login') }}">เข้าโต๊ะด้วยรหัส PIN</a>
+    </p>
+</div>
+{% endblock %}

@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block title %}แดชบอร์ด Admin{% endblock %}
+{% block content %}
+<style>
+    .stat-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+    .stat-box {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 16px;
+        background: #fffaf5;
+    }
+    .stat-box .stat-label { color: var(--muted); font-size: 0.85em; margin-bottom: 6px; }
+    .stat-box .stat-value { font-size: 1.6em; font-weight: 700; }
+    .stat-box.warning { border-left: 6px solid #e8590c; background: #fff5eb; }
+
+    .admin-nav { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+
+    .inv-row-low td { background: #fff5eb; }
+    .inline-form { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .inline-form input[type="number"] { width: 90px; }
+</style>
+
+<div class="card">
+    <h2>📊 แดชบอร์ดผู้ดูแลระบบ</h2>
+    <p class="muted">สรุปยอดขาย เมนูขายดี มูลค่าสต็อก และการแจ้งเตือนวัตถุดิบใกล้หมด</p>
+
+    <div class="admin-nav">
+        <a class="btn" href="{{ url_for('admin_menu_list') }}">🍽️ จัดการเมนูอาหาร</a>
+        <a class="btn" href="{{ url_for('staff_dashboard') }}">🍴 จัดการโต๊ะ</a>
+        <a class="btn" href="{{ url_for('kitchen_display') }}">🍳 หน้าครัว</a>
+        <a class="btn" href="{{ url_for('logout') }}">ออกจากระบบ</a>
+    </div>
+
+    <div class="stat-grid">
+        <div class="stat-box">
+            <div class="stat-label">ยอดขายวันนี้ ({{ daily_sales.date }})</div>
+            <div class="stat-value">{{ "%.2f"|format(daily_sales.total_sales) }} บาท</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">จำนวนบิลวันนี้</div>
+            <div class="stat-value">{{ daily_sales.bill_count }} บิล</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">มูลค่าสต็อกคงเหลือ</div>
+            <div class="stat-value">{{ "%.2f"|format(stock_value) }} บาท</div>
+        </div>
+        <div class="stat-box {% if low_stock_alerts|length > 0 %}warning{% endif %}">
+            <div class="stat-label">วัตถุดิบต่ำกว่าจุดสั่งซื้อ</div>
+            <div class="stat-value">{{ low_stock_alerts|length }} รายการ</div>
+        </div>
+    </div>
+</div>
+
+{% if low_stock_alerts|length > 0 %}
+<div class="card">
+    <h3>⚠️ แจ้งเตือน: วัตถุดิบต่ำกว่าจุดสั่งซื้อเพิ่ม (Reorder Point)</h3>
+    <table>
+        <thead><tr><th>วัตถุดิบ</th><th>คงเหลือ</th><th>จุดสั่งซื้อเพิ่ม</th><th>หน่วย</th></tr></thead>
+        <tbody>
+        {% for a in low_stock_alerts %}
+            <tr class="inv-row-low">
+                <td>{{ a.name }}</td>
+                <td>{{ "%.2f"|format(a.stock_qty) }}</td>
+                <td>{{ "%.2f"|format(a.reorder_point) }}</td>
+                <td>{{ a.unit }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<div class="card">
+    <h3>🔥 เมนูขายดี (สะสมจากบิลที่เช็คบิลแล้วทั้งหมด)</h3>
+    {% if best_sellers|length == 0 %}
+        <p class="muted">ยังไม่มีข้อมูลยอดขาย</p>
+    {% else %}
+    <table>
+        <thead><tr><th>#</th><th>เมนู</th><th>จำนวนที่ขายได้</th><th>รายได้รวม</th></tr></thead>
+        <tbody>
+        {% for item in best_sellers %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td>{{ item.name }}</td>
+                <td>{{ item.total_qty }}</td>
+                <td>{{ "%.2f"|format(item.total_revenue) }} บาท</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h3>📦 จัดการสต็อกวัตถุดิบ</h3>
+    <p class="muted">ปรับจำนวนสต็อกคงเหลือและจุดสั่งซื้อเพิ่ม (Reorder Point) ของแต่ละวัตถุดิบได้ที่นี่</p>
+    {% if inventory|length == 0 %}
+        <p class="muted">ยังไม่มีข้อมูลวัตถุดิบในระบบ</p>
+    {% else %}
+    <table>
+        <thead>
+            <tr>
+                <th>วัตถุดิบ</th><th>คงเหลือ</th><th>จุดสั่งซื้อเพิ่ม</th><th>หน่วย</th>
+                <th>ต้นทุน/หน่วย</th><th>แก้ไข</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for ing in inventory %}
+            <tr class="{% if ing.stock_qty < ing.reorder_point %}inv-row-low{% endif %}">
+                <td>{{ ing.name }}</td>
+                <td>{{ "%.2f"|format(ing.stock_qty) }}</td>
+                <td>{{ "%.2f"|format(ing.reorder_point) }}</td>
+                <td>{{ ing.unit }}</td>
+                <td>{{ "%.2f"|format(ing.cost_per_unit) }} บาท</td>
+                <td>
+                    <form class="inline-form" method="POST"
+                          action="{{ url_for('admin_ingredient_update', ingredient_id=ing.ingredient_id) }}">
+                        <input type="number" step="0.01" min="0" name="stock_qty" value="{{ ing.stock_qty }}" required>
+                        <input type="number" step="0.01" min="0" name="reorder_point" value="{{ ing.reorder_point }}" required>
+                        <button type="submit">บันทึก</button>
+                    </form>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h3>🍴 สถานะโต๊ะทั้งหมด</h3>
+    {% if tables|length == 0 %}
+        <p class="muted">ยังไม่มีข้อมูลโต๊ะในระบบ</p>
+    {% else %}
+    <table>
+        <thead><tr><th>โต๊ะ</th><th>สถานะ</th></tr></thead>
+        <tbody>
+        {% for t in tables %}
+            <tr>
+                <td>{{ t.table_name }}</td>
+                <td><span class="badge" style="background:#e9ecef; color:#495057;">{{ t.status }}</span></td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,16 @@
+[
+  {
+    "user_id": "U001",
+    "username": "admin",
+    "password": "admin123",
+    "role": "admin",
+    "full_name": "ผู้ดูแลระบบ"
+  },
+  {
+    "user_id": "U002",
+    "username": "staff",
+    "password": "staff123",
+    "role": "staff",
+    "full_name": "พนักงานเสิร์ฟ"
+  }
+]

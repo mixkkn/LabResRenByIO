@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}ใบเสร็จ - {{ bill.bill_id }}{% endblock %}
+{% block content %}
+<div class="card" style="max-width:480px; margin:0 auto;">
+    <h2 style="text-align:center;">🧾 ใบเสร็จ</h2>
+    <p class="muted" style="text-align:center;">{{ bill.bill_id }}</p>
+
+    <table>
+        <tr><td>โต๊ะ</td><td style="text-align:right;">{{ bill.table_name }}</td></tr>
+        <tr><td>วันที่/เวลา</td><td style="text-align:right;">{{ bill.checked_out_at }}</td></tr>
+        <tr><td>พนักงาน</td><td style="text-align:right;">{{ bill.checked_out_by }}</td></tr>
+    </table>
+
+    <div class="card" style="background:#fff9f4; margin-top:16px;">
+        <div style="display:flex; justify-content:space-between; padding:6px 0;">
+            <span>ยอดรวมก่อนหักส่วนลด</span><span>{{ "%.2f"|format(bill.subtotal) }} บาท</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; padding:6px 0;">
+            <span>ส่วนลด ({{ bill.discount_percent }}%)</span><span>-{{ "%.2f"|format(bill.discount_amount) }} บาท</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; padding:6px 0;">
+            <span>ภาษี ({{ bill.tax_percent }}%)</span><span>+{{ "%.2f"|format(bill.tax_amount) }} บาท</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-weight:700; font-size:1.3em; margin-top:10px; padding-top:10px; border-top:2px solid var(--border);">
+            <span>ยอดชำระทั้งหมด</span><span>{{ "%.2f"|format(bill.grand_total) }} บาท</span>
+        </div>
+    </div>
+
+    {% if bill.stock_warnings and bill.stock_warnings|length > 0 %}
+    <div class="flash error" style="margin-top:16px;">
+        ⚠️ พบวัตถุดิบสต็อกติดลบหลังตัดสต็อก (บันทึก log ไว้แล้ว):
+        <ul style="margin:8px 0 0; padding-left:20px;">
+            {% for w in bill.stock_warnings %}
+            <li>{{ w.name }}: คงเหลือ {{ "%.2f"|format(w.resulting_qty) }} {{ w.unit }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <p style="text-align:center; margin-top:20px;">
+        <a class="btn" href="{{ url_for('staff_dashboard') }}">กลับหน้าจัดการโต๊ะ</a>
+    </p>
+</div>
+{% endblock %}

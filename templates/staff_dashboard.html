@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}จัดการโต๊ะ{% endblock %}
+{% block content %}
+<style>
+    .table-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+        gap: 16px;
+    }
+    .table-card {
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 18px;
+        background: var(--bg-card);
+    }
+    .table-card.occupied { border-top: 4px solid var(--warning); }
+    .table-card.empty { border-top: 4px solid var(--success); }
+    .table-card .table-name { font-size: 1.15em; font-weight: 700; margin-bottom: 6px; }
+    .table-card .pin-display {
+        font-family: var(--font-mono);
+        font-size: 1.8em;
+        letter-spacing: 0.15em;
+        color: var(--accent);
+        margin: 8px 0 4px;
+    }
+    .table-card .meta { font-size: 0.82em; color: var(--muted); margin-bottom: 10px; }
+    .table-card .table-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .table-card .table-actions form { display: inline; }
+    .table-card .qr-wrap { text-align: center; margin: 10px 0; }
+    .table-card .qr-image {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 6px;
+        background: #fff;
+    }
+    .table-card .qr-caption { font-size: 0.78em; color: var(--muted); margin-top: 4px; }
+    .add-table-form {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: center;
+        margin-top: 12px;
+    }
+    .add-table-form input[type="text"] {
+        flex: 1 1 220px;
+        padding: 10px 12px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        font-size: 0.95em;
+    }
+    .add-table-form button {
+        white-space: nowrap;
+    }
+</style>
+
+<div class="card">
+    <h2>🍴 จัดการโต๊ะ</h2>
+    <p class="muted">เปิดโต๊ะเพื่อสุ่มรหัส PIN ให้ลูกค้า และปิดโต๊ะเมื่อลูกค้าชำระเงินเรียบร้อยแล้ว</p>
+
+    <form class="add-table-form" method="POST" action="{{ url_for('staff_add_table') }}">
+        <input type="text" name="table_name" placeholder="ชื่อโต๊ะใหม่ เช่น โต๊ะ 4 หรือ โต๊ะ VIP"
+               maxlength="50" required>
+        <button type="submit">➕ เพิ่มโต๊ะใหม่</button>
+    </form>
+</div>
+
+{% if tables|length == 0 %}
+    <div class="card"><p class="muted">ยังไม่มีข้อมูลโต๊ะในระบบ</p></div>
+{% else %}
+<div class="table-grid">
+    {% for t in tables %}
+    <div class="table-card {% if t.status == 'มีลูกค้า' %}occupied{% else %}empty{% endif %}">
+        <div class="table-name">{{ t.table_name }}</div>
+        <span class="badge"
+              style="{% if t.status == 'มีลูกค้า' %}background:#fff1e6; color:#c0530f;{% else %}background:#e6f7ea; color:#1e5e2a;{% endif %}">
+            {{ t.status }}
+        </span>
+
+        {% if t.status == 'มีลูกค้า' %}
+            <div class="pin-display">{{ t.pin }}</div>
+            <div class="meta">เปิดโดย {{ t.opened_by }} · {{ t.opened_at }}</div>
+
+            {% set qr_url = url_for('customer_qr_login', table_id=t.table_id, pin=t.pin, _external=True) %}
+            <div class="qr-wrap">
+                <img class="qr-image"
+                     src="https://api.qrserver.com/v1/create-qr-code/?size=140x140&data={{ qr_url | urlencode }}"
+                     alt="QR Code สำหรับสั่งอาหาร {{ t.table_name }}"
+                     width="140" height="140" loading="lazy">
+                <div class="qr-caption">สแกนเพื่อสั่งอาหาร</div>
+            </div>
+
+            <div class="table-actions">
+                <a class="btn btn-secondary" href="{{ url_for('checkout_preview', table_id=t.table_id) }}">เช็คบิล</a>
+                <form method="POST" action="{{ url_for('staff_close_table', table_id=t.table_id) }}"
+                      onsubmit="return confirm('ยืนยันปิด {{ t.table_name }}? ควรเช็คบิลให้เรียบร้อยก่อนปิดโต๊ะ');">
+                    <button type="submit" class="btn-danger">ปิดโต๊ะ</button>
+                </form>
+            </div>
+        {% else %}
+            <div class="meta">โต๊ะว่าง พร้อมรับลูกค้าใหม่</div>
+            <div class="table-actions">
+                <form method="POST" action="{{ url_for('staff_open_table', table_id=t.table_id) }}">
+                    <button type="submit">เปิดโต๊ะ</button>
+                </form>
+                <form method="POST" action="{{ url_for('staff_delete_table', table_id=t.table_id) }}"
+                      onsubmit="return confirm('ยืนยันลบ {{ t.table_name }} ออกจากระบบถาวร? การลบนี้ไม่สามารถย้อนกลับได้');">
+                    <button type="submit" class="btn-danger">🗑️ ลบโต๊ะ</button>
+                </form>
+            </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}
